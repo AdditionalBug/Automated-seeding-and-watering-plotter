@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Irrigation & Tank Dashboard</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Tailwind Configuration -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              500: '#22c55e',
+              600: '#16a34a',
+              900: '#14532d',
+            },
+            darkbg: '#0B0F17',
+            cardbg: 'rgba(23, 31, 47, 0.7)',
+            cardborder: 'rgba(255, 255, 255, 0.08)'
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Custom CSS for Liquid Wave Animation & Smooth Gauges -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    body {
+      background-color: #0B0F17;
+      font-family: 'Inter', sans-serif;
+      color: #F3F4F6;
+      background-image: 
+        radial-gradient(at 10% 10%, rgba(34, 197, 94, 0.08) 0px, transparent 50%),
+        radial-gradient(at 90% 90%, rgba(14, 165, 233, 0.08) 0px, transparent 50%);
+      background-attachment: fixed;
+    }
+
+    /* Glassmorphism card utility */
+    .glass-card {
+      background: rgba(20, 27, 41, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    .glass-card:hover {
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    /* Liquid Tank Animation */
+    .water-container {
+      position: relative;
+      overflow: hidden;
+      border-radius: 1.25rem;
+      background: rgba(15, 23, 42, 0.8);
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.6);
+    }
+
+    .water-fill {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+    }
+
+    .wave {
+      position: absolute;
+      top: -14px;
+      left: 0;
+      width: 200%;
+      height: 20px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M0,0 C150,90 350,-40 500,40 C650,120 900,10 1200,40 L1200,120 L0,120 Z' fill='%2338bdf8'%3E%3C/path%3E%3C/svg%3E") repeat-x;
+      background-size: 600px 20px;
+      animation: waveMove 6s linear infinite;
+      opacity: 0.8;
+    }
+
+    @keyframes waveMove {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-600px); }
+    }
+
+    /* Dial Button Click Effect */
+    .btn-dial {
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .btn-dial:active {
+      transform: scale(0.92);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.5);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col justify-between text-slate-100 antialiased p-3 sm:p-6 md:p-8">
+
+  <!-- HEADER & NAVIGATION -->
+  <header class="max-w-7xl mx-auto w-full mb-6">
+    <div class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-center justify-between gap-4">
+      
+      <!-- Brand Title -->
+      <div class="flex items-center gap-3">
+        <div class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 shadow-inner">
+          <i data-lucide="sprout" class="w-7 h-7"></i>
+        </div>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
+            Smart Irrigation & Tank
+          </h1>
+          <p class="text-xs text-slate-400 font-medium">ESP32 Automated Monitoring & Control System</p>
+        </div>
+      </div>
+
+      <!-- Live Controls / Status -->
+      <div class="flex items-center gap-3">
+        
+        <!-- Live Sync Badge -->
+        <div id="statusBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold">
+          <span class="relative flex h-2 w-2">
+            <span id="statusPing" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span id="statusDot" class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+          </span>
+          <span id="statusText">Connecting...</span>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN DASHBOARD CONTENT -->
+  <main class="max-w-7xl mx-auto w-full flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+
+    <!-- SECTION 1: MOISTURE GAUGES (SPEEDOMETER STYLE) - 7 COLS -->
+    <section class="lg:col-span-7 glass-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-5">
+          <div class="flex items-center gap-2">
+            <i data-lucide="gauge" class="w-5 h-5 text-emerald-400"></i>
+            <h2 class="text-lg font-semibold text-slate-200">Soil Moisture Gauges</h2>
+          </div>
+        </div>
+
+        <!-- Gauges Grid (2x2) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          
+          <!-- Gauge 1 -->
+          <div class="glass-card bg-slate-900/40 rounded-xl p-4 flex flex-col items-center justify-between relative group">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Moisture Coordinate 1</span>
+            <div class="relative w-36 h-24 flex items-center justify-center">
+              <svg class="w-full h-full overflow-visible" viewBox="0 0 100 75">
+                <!-- Background Arc -->
+                <path d="M 18,62 A 36,36 0 1,1 82,62" fill="none" stroke="#1e293b" stroke-width="8" stroke-linecap="round"/>
+                <!-- Gauge Progress Arc -->
+                <path id="gaugeArc1" d="M 18,62 A 36,36 0 1,1 82,62" fill="none" stroke="#22c55e" stroke-width="8" stroke-linecap="round" stroke-dasharray="138.2" stroke-dashoffset="138.2" class="transition-all duration-700 ease-out"/>
+              </svg>
+              <!-- Center Text readout -->
+              <div class="absolute inset-0 flex flex-col items-center justify-center pt-2">
+                <div>
+                  <span id="gaugeVal1" class="text-2xl font-bold text-white tracking-tight">0</span>
+                  <span class="text-xs text-slate-400">%</span>
+                </div>
+              </div>
+            </div>
+            <div class="mt-1 text-xs font-medium px-2.5 py-0.5 rounded-full" id="statusBadge1">Checking...</div>
+          </div>
+
+          <!-- Gauge 2 -->
+          <div class="glass-card bg-slate-900/40 rounded-xl p-4 flex flex-col items-center justify-between relative group">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Moisture Coordinate 2</span>
+            <div class="relative w-36 h-24 flex items-center justify-center">
+              <svg class="w-full h-full overflow-visible" viewBox="0 0 100 75">
+                <path d="M 18,62 A 36,36 0 1,1 82,62" fill="none" stroke="#1e293b" stroke-width="8" stroke-linecap="round"/>
+                <path id="gaugeArc2" d="M 18,62 A 36,36 0 1,1 82,62" fill="none" stroke="#22c55e" stroke-width="8" stroke-linecap="round" stroke-dasharray="138.2" stroke-dashoffset="138.2" class="transition-all duration-700 ease-out"/>
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center pt-2">
+                <div>
+                  <span id="gaugeVal2" class="text-2xl font-bold text-white tracking-tight">0</span>
+                  <span class="text-xs text-slate-400">%</span>
+                </div>
+              </div>
+            </div>
+            <div class="mt-1 text-xs font-medium px-2.5 py-0.5 rounded-full" id="statusBadge2">Checking...</div>
+          </div>
+
+          <!-- Gauge 3 -->
+          <div class="glass-card bg-slate-900/40 rounded-xl p-4 flex flex-col items-center justify-between relative group">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Moisture Coordinate 3</span>
+            <div class="relative w-36 h-24 flex items-center justify-center">
+              <svg class="w-full h-full overflow-visible" viewBox="0 0 100 75">
+                <path d="M 18,62 A 36,36 0 1,1 82,62" fill="none" stroke="#1e293b" stroke-width="8" stroke-linecap="round"/>
+                <path id="gaugeArc3" d="M 18,62 A 36,36 0 1,1 82,62" fill="none" stroke="#22c55e" stroke-width="8" stroke-linecap="round" stroke-dasharray="138.2" stroke-dashoffset="138.2" class="transition-all duration-700 ease-out"/>
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center pt-2">
+                <div>
+                  <span id="gaugeVal3" class="text-2xl font-bold text-white tracking-tight">0</span>
+                  <span class="text-xs text-slate-400">%</span>
+                </div>
+              </div>
+            </div>
+            <div class="mt-1 text-xs font-medium px-2.5 py-0.5 rounded-full" id="statusBadge3">Checking...</div>
+          </div>
+
+          <!-- Gauge 4 -->
+          <div class="glass-card bg-slate-900/40 rounded-xl p-4 flex flex-col items-center justify-between relative group">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Moisture Coordinate 4</span>
+            <div class="relative w-36 h-24 flex items-center justify-center">
+              <svg class="w-full h-full overflow-visible" viewBox="0 0 100 75">
+                <path d="M 18,62 A 36,36 0 1,1 82,62" fill="none" stroke="#1e293b" stroke-width="8" stroke-linecap="round"/>
+                <path id="gaugeArc4" d="M 18,62 A 36,36 0 1,1 82,62" fill="none" stroke="#22c55e" stroke-width="8" stroke-linecap="round" stroke-dasharray="138.2" stroke-dashoffset="138.2" class="transition-all duration-700 ease-out"/>
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center pt-2">
+                <div>
+                  <span id="gaugeVal4" class="text-2xl font-bold text-white tracking-tight">0</span>
+                  <span class="text-xs text-slate-400">%</span>
+                </div>
+              </div>
+            </div>
+            <div class="mt-1 text-xs font-medium px-2.5 py-0.5 rounded-full" id="statusBadge4">Checking...</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Quick Soil Legend -->
+      <div class="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap justify-around text-[11px] text-slate-400">
+        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Dry (&lt;30%)</span>
+        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Optimal (30-80%)</span>
+        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span> High (&gt;80%)</span>
+      </div>
+    </section>
+
+    <!-- SECTION 2: WATER TANK INDICATOR - 5 COLS -->
+    <section class="lg:col-span-5 glass-card rounded-2xl p-5 sm:p-6 flex flex-col justify-center">
+      <div>
+        <div class="flex items-center justify-center mb-4">
+          <div class="flex items-center gap-2">
+            <i data-lucide="droplets" class="w-5 h-5 text-sky-400"></i>
+            <h2 class="text-lg font-semibold text-slate-200">Main Water Reservoir</h2>
+          </div>
+        </div>
+
+        <!-- Vertical Tank Container -->
+        <div class="flex items-center justify-center py-2">
+          <div class="water-container w-36 h-64 border-2 border-slate-700/80 flex flex-col justify-between p-3">
+            
+            <!-- Tank Level Ruler Marks -->
+            <div class="absolute right-2 top-0 bottom-0 flex flex-col justify-between py-4 text-[10px] text-slate-400 font-mono z-10 pointer-events-none select-none">
+              <span>100%</span>
+              <span>75%</span>
+              <span>50%</span>
+              <span>25%</span>
+              <span>0%</span>
+            </div>
+
+            <!-- Liquid Level Body -->
+            <div id="waterFill" class="water-fill" style="height: 0%;">
+              <div class="wave"></div>
+            </div>
+
+            <!-- Live Percentage Readout Overlay -->
+            <div class="z-20 w-full text-center my-auto bg-slate-900/60 backdrop-blur-md rounded-xl py-2 px-1 border border-white/10 shadow-lg">
+              <div id="waterLevelVal" class="text-3xl font-extrabold text-white tracking-tight">0%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: CONTROL PANEL & DIAL PAD - 12 COLS -->
+    <section class="lg:col-span-12 glass-card rounded-2xl p-5 sm:p-6">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-6">
+        <div>
+          <div class="flex items-center gap-2">
+            <i data-lucide="gamepad-2" class="w-5 h-5 text-indigo-400"></i>
+            <h2 class="text-lg font-semibold text-slate-200">System Remote Control</h2>
+          </div>
+        </div>
+        <div id="lastActionBadge" class="hidden text-xs px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono">
+          Sent: <span id="lastActionText" class="font-bold">none</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+        
+        <!-- Dial Pad 1 to 6 (7 Cols) -->
+        <div class="md:col-span-7 bg-slate-900/40 rounded-xl p-4 sm:p-5 border border-slate-800/60">
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+            Coordinates
+          </label>
+          
+          <div class="grid grid-cols-3 gap-3 sm:gap-4">
+            <button onclick="sendAction('1')" class="btn-dial w-full h-14 sm:h-16 glass-card bg-slate-800/60 hover:bg-slate-700/80 active:bg-indigo-600 rounded-xl flex items-center justify-center border border-slate-700/60 group">
+              <span class="text-xl sm:text-2xl font-bold text-white group-hover:text-indigo-400 transition-colors">1</span>
+            </button>
+
+            <button onclick="sendAction('2')" class="btn-dial w-full h-14 sm:h-16 glass-card bg-slate-800/60 hover:bg-slate-700/80 active:bg-indigo-600 rounded-xl flex items-center justify-center border border-slate-700/60 group">
+              <span class="text-xl sm:text-2xl font-bold text-white group-hover:text-indigo-400 transition-colors">2</span>
+            </button>
+
+            <button onclick="sendAction('3')" class="btn-dial w-full h-14 sm:h-16 glass-card bg-slate-800/60 hover:bg-slate-700/80 active:bg-indigo-600 rounded-xl flex items-center justify-center border border-slate-700/60 group">
+              <span class="text-xl sm:text-2xl font-bold text-white group-hover:text-indigo-400 transition-colors">3</span>
+            </button>
+
+            <button onclick="sendAction('4')" class="btn-dial w-full h-14 sm:h-16 glass-card bg-slate-800/60 hover:bg-slate-700/80 active:bg-indigo-600 rounded-xl flex items-center justify-center border border-slate-700/60 group">
+              <span class="text-xl sm:text-2xl font-bold text-white group-hover:text-indigo-400 transition-colors">4</span>
+            </button>
+
+            <button onclick="sendAction('5')" class="btn-dial w-full h-14 sm:h-16 glass-card bg-slate-800/60 hover:bg-slate-700/80 active:bg-indigo-600 rounded-xl flex items-center justify-center border border-slate-700/60 group">
+              <span class="text-xl sm:text-2xl font-bold text-white group-hover:text-indigo-400 transition-colors">5</span>
+            </button>
+
+            <button onclick="sendAction('6')" class="btn-dial w-full h-14 sm:h-16 glass-card bg-slate-800/60 hover:bg-slate-700/80 active:bg-indigo-600 rounded-xl flex items-center justify-center border border-slate-700/60 group">
+              <span class="text-xl sm:text-2xl font-bold text-white group-hover:text-indigo-400 transition-colors">6</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- System Command Buttons (5 Cols) -->
+        <div class="md:col-span-5 bg-slate-900/40 rounded-xl p-4 sm:p-5 border border-slate-800/60 flex flex-col justify-between">
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+            System Actions & Modes
+          </label>
+
+          <div class="grid grid-cols-1 gap-3">
+            
+            <!-- HOME BUTTON -->
+            <button onclick="sendAction('home')" class="btn-dial w-full py-3.5 px-4 bg-gradient-to-r from-amber-500/20 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-600/30 border border-amber-500/40 rounded-xl flex items-center justify-between group transition-all">
+              <div class="flex items-center gap-3">
+                <div class="p-2 bg-amber-500/20 rounded-lg text-amber-400">
+                  <i data-lucide="home" class="w-5 h-5"></i>
+                </div>
+                <div class="text-left">
+                  <div class="text-sm font-bold text-amber-200">HOME</div>
+                </div>
+              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-amber-400 group-hover:translate-x-1 transition-transform"></i>
+            </button>
+
+            <!-- FULL BUTTON -->
+            <button onclick="sendAction('full')" class="btn-dial w-full py-3.5 px-4 bg-gradient-to-r from-purple-500/20 to-purple-600/20 hover:from-purple-500/30 hover:to-purple-600/30 border border-purple-500/40 rounded-xl flex items-center justify-between group transition-all">
+              <div class="flex items-center gap-3">
+                <div class="p-2 bg-purple-500/20 rounded-lg text-purple-400">
+                  <i data-lucide="zap" class="w-5 h-5"></i>
+                </div>
+                <div class="text-left">
+                  <div class="text-sm font-bold text-purple-200">FULL RUN</div>
+                </div>
+              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-purple-400 group-hover:translate-x-1 transition-transform"></i>
+            </button>
+
+            <!-- WATER BUTTON -->
+            <button onclick="sendAction('water')" class="btn-dial w-full py-3.5 px-4 bg-gradient-to-r from-sky-500/20 to-sky-600/20 hover:from-sky-500/30 hover:to-sky-600/30 border border-sky-500/40 rounded-xl flex items-center justify-between group transition-all">
+              <div class="flex items-center gap-3">
+                <div class="p-2 bg-sky-500/20 rounded-lg text-sky-400">
+                  <i data-lucide="droplet" class="w-5 h-5"></i>
+                </div>
+                <div class="text-left">
+                  <div class="text-sm font-bold text-sky-200">WATER PUMP</div>
+                </div>
+              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-sky-400 group-hover:translate-x-1 transition-transform"></i>
+            </button>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER LOG TERMINAL -->
+  <footer class="max-w-7xl mx-auto w-full">
+    <div class="glass-card rounded-2xl p-4">
+      <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-800">
+        <div class="flex items-center gap-2 text-xs font-semibold text-slate-300">
+          <i data-lucide="terminal" class="w-4 h-4 text-emerald-400"></i>
+          <span>Live Communication Console</span>
+        </div>
+        <button onclick="clearLogs()" class="text-[11px] text-slate-400 hover:text-white transition-colors">
+          Clear Console
+        </button>
+      </div>
+
+      <!-- Log Output Box -->
+      <div id="logConsole" class="h-28 overflow-y-auto font-mono text-xs text-slate-300 space-y-1 p-1">
+        <div class="text-slate-500">[System Initialized] Dashboard ready...</div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- APPLICATION SCRIPT LOGIC -->
+  <script>
+    // Firebase Database REST Endpoint
+    const FIREBASE_DB_URL = "https://esp8266webserver-31a5e-default-rtdb.firebaseio.com";
+    
+    // Application State
+    let syncInterval = null;
+
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // Helper: Update Radial Speedometer SVG Gauge Arc
+    function updateGauge(gaugeId, valueId, badgeId, rawVal) {
+      const val = Math.min(Math.max(parseInt(rawVal) || 0, 0), 100);
+      const arc = document.getElementById(gaugeId);
+      const valText = document.getElementById(valueId);
+      const badge = document.getElementById(badgeId);
+
+      if (!arc || !valText || !badge) return;
+
+      // Gauge arc length for R=36 semi-circle/arch is ~138.2px
+      const totalDash = 138.2;
+      const offset = totalDash - (val / 100) * totalDash;
+      arc.style.strokeDashoffset = offset;
+
+      valText.innerText = val;
+
+      // Dynamic Color Coding based on Value
+      if (val < 30) {
+        arc.style.stroke = "#ef4444"; // Red (Dry)
+        badge.innerText = "DRY";
+        badge.className = "mt-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30";
+      } else if (val <= 80) {
+        arc.style.stroke = "#22c55e"; // Green (Optimal)
+        badge.innerText = "OPTIMAL";
+        badge.className = "mt-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+      } else {
+        arc.style.stroke = "#06b6d4"; // Cyan (High)
+        badge.innerText = "HIGH";
+        badge.className = "mt-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30";
+      }
+    }
+
+    // Helper: Update Water Tank Level
+    function updateWaterTank(rawVal) {
+      const val = Math.min(Math.max(parseInt(rawVal) || 0, 0), 100);
+      const fill = document.getElementById('waterFill');
+      const text = document.getElementById('waterLevelVal');
+
+      if (!fill || !text) return;
+
+      fill.style.height = val + '%';
+      text.innerText = val + '%';
+    }
+
+    // Console Logging Helper
+    function appendLog(message, type = 'info') {
+      const consoleBox = document.getElementById('logConsole');
+      if (!consoleBox) return;
+
+      const time = new Date().toLocaleTimeString();
+      const logRow = document.createElement('div');
+
+      let colorClass = 'text-slate-300';
+      if (type === 'success') colorClass = 'text-emerald-400 font-semibold';
+      if (type === 'error') colorClass = 'text-rose-400 font-semibold';
+      if (type === 'action') colorClass = 'text-indigo-300 font-medium';
+
+      logRow.className = colorClass;
+      logRow.innerHTML = `<span class="text-slate-500">[${time}]</span> ${message}`;
+      
+      consoleBox.appendChild(logRow);
+      consoleBox.scrollTop = consoleBox.scrollHeight;
+    }
+
+    function clearLogs() {
+      const consoleBox = document.getElementById('logConsole');
+      if (consoleBox) consoleBox.innerHTML = '<div class="text-slate-500">[Console Cleared]</div>';
+    }
+
+    // Realtime Sync Function via Firebase RTDB REST API
+    async function fetchFirebaseData() {
+      try {
+        const response = await fetch(`${FIREBASE_DB_URL}/sensors.json`);
+        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+        
+        const data = await response.json();
+        
+        if (data) {
+          updateGauge('gaugeArc1', 'gaugeVal1', 'statusBadge1', data.moisture_1 || 0);
+          updateGauge('gaugeArc2', 'gaugeVal2', 'statusBadge2', data.moisture_2 || 0);
+          updateGauge('gaugeArc3', 'gaugeVal3', 'statusBadge3', data.moisture_3 || 0);
+          updateGauge('gaugeArc4', 'gaugeVal4', 'statusBadge4', data.moisture_4 || 0);
+          updateWaterTank(data.water_level || 0);
+          
+          setOnlineStatus(true, "Firebase Live");
+        }
+      } catch (err) {
+        setOnlineStatus(false, "Connection Warning");
+        appendLog(`Sync warning: ${err.message}`, 'error');
+      }
+    }
+
+    // Send Button Action to Firebase RTDB `/btn/action`
+    async function sendAction(actionKey) {
+      // Visual feedback
+      const lastActionBadge = document.getElementById('lastActionBadge');
+      const lastActionText = document.getElementById('lastActionText');
+      if (lastActionBadge && lastActionText) {
+        lastActionBadge.classList.remove('hidden');
+        lastActionText.innerText = actionKey;
+      }
+
+      appendLog(`Triggering Action: "<strong>${actionKey}</strong>" -> Writing to /btn/action`, 'action');
+
+      try {
+        const response = await fetch(`${FIREBASE_DB_URL}/btn/action.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(actionKey)
+        });
+
+        if (response.ok) {
+          appendLog(`Action "${actionKey}" successfully posted to ESP32 stream!`, 'success');
+
+          // Reset Firebase action back to empty string after 3 seconds
+          setTimeout(async () => {
+            try {
+              await fetch(`${FIREBASE_DB_URL}/btn/action.json`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify("")
+              });
+              appendLog(`Auto-reset /btn/action back to "" (3s elapsed)`, 'info');
+            } catch (resetErr) {
+              appendLog(`Auto-reset failed: ${resetErr.message}`, 'error');
+            }
+          }, 3000);
+
+        } else {
+          throw new Error(`Failed with status ${response.status}`);
+        }
+      } catch (err) {
+        appendLog(`Failed to post action "${actionKey}": ${err.message}`, 'error');
+      }
+    }
+
+    // Connection Status Indicator Helper
+    function setOnlineStatus(isOnline, customText) {
+      const badge = document.getElementById('statusBadge');
+      const dot = document.getElementById('statusDot');
+      const ping = document.getElementById('statusPing');
+      const text = document.getElementById('statusText');
+
+      if (!badge || !text) return;
+
+      if (isOnline) {
+        badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold";
+        dot.className = "relative inline-flex rounded-full h-2 w-2 bg-emerald-500";
+        ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
+        text.innerText = customText || "Firebase Connected";
+      } else {
+        badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold";
+        dot.className = "relative inline-flex rounded-full h-2 w-2 bg-amber-500";
+        ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75";
+        text.innerText = customText || "Offline / Unreachable";
+      }
+    }
+
+    // Start Live Polling on Page Load
+    window.onload = () => {
+      fetchFirebaseData();
+      // Poll every 3 seconds for fresh sensor values
+      syncInterval = setInterval(fetchFirebaseData, 3000);
+    };
+  </script>
+</body>
+</html>
