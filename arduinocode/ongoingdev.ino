@@ -1,6 +1,9 @@
 #include <Servo.h>
 
 
+
+
+
 Servo servo;
 
 const int X_STEP_PIN = 2;
@@ -20,7 +23,7 @@ const int CONTINUE_BTN_PIN = A2;
 
 // Homing speed delay (microseconds between steps - lower is faster)
 const int STEP_DELAY = 100;  // -> 200 or 400
-const int down = 5000;
+const int down = 4000;
 const int up = 0;
 
 long positions[7][2] = {
@@ -41,7 +44,8 @@ long currentZ = 0;
 
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(4800);
+  
 
   pinMode(X_STEP_PIN, OUTPUT);
   pinMode(X_DIR_PIN, OUTPUT);
@@ -102,12 +106,12 @@ void loop() {
     ToPosition(positions[index - 1][0], positions[index - 1][1]);
   } else if (index == 8) {
     water();
-  } else if (index >= 11 && index <= 14) {
+  } else if (index >= 11 && index <= 16) {
     if (seeded == true) {
       zonelogic(index);
-      toUD(down);
-      water();
-      toUD(up);
+      // toUD(down);
+      // water();
+      // toUD(up);
     }
   }
 }
@@ -176,24 +180,50 @@ void move(long steps, bool xDir, bool yDir) {
 /*----------------------------------------------------------------------------------*/
 
 
+// void zmove(long steps, bool zDir) {
+//   digitalWrite(Z_DIR_PIN, zDir);
+
+//   for (long i = 0; i < steps; i++) {
+//     limitPause();
+//     digitalWrite(Z_STEP_PIN, HIGH);
+//     delayMicroseconds(STEP_DELAY);
+//     digitalWrite(Z_STEP_PIN, LOW);
+//     delayMicroseconds(STEP_DELAY);
+//   }
+// }
+
+// void toUD(long targetZ) {
+//   long deltaZ = targetZ - currentZ;
+//   if (deltaZ != 0) {
+//     bool dir = (deltaZ > 0) ? LOW : HIGH;  // Simplified direction logic
+//     zmove(abs(deltaZ), dir);
+//     currentZ = targetZ;
+//   }
+// }
 void zmove(long steps, bool zDir) {
+  // 1. Set the direction pin
   digitalWrite(Z_DIR_PIN, zDir);
 
+  // 2. Step the motor exactly like your example sketch
   for (long i = 0; i < steps; i++) {
-    limitPause();
+    limitPause(); // Keeps your limit safety active
+    
     digitalWrite(Z_STEP_PIN, HIGH);
-    delayMicroseconds(STEP_DELAY);
+    delayMicroseconds(1000); // Speed control matching your example
     digitalWrite(Z_STEP_PIN, LOW);
-    delayMicroseconds(STEP_DELAY);
+    delayMicroseconds(1000); // Speed control matching your example
   }
 }
 
 void toUD(long targetZ) {
   long deltaZ = targetZ - currentZ;
   if (deltaZ != 0) {
-    bool dir = (deltaZ > 0) ? LOW : HIGH;  // Simplified direction logic
+    // If target is greater than current, go HIGH (Forward), else go LOW (Back)
+    // Swap HIGH and LOW here if your physical motor moves backwards
+    bool dir = (deltaZ > 0) ? LOW : HIGH;  
+    
     zmove(abs(deltaZ), dir);
-    currentZ = targetZ;
+    currentZ = targetZ; // Update position tracker
   }
 }
 
@@ -229,33 +259,58 @@ void ToPosition(long targetX, long targetY) {
 
 void zonelogic(int index) {
   if (index == 11) {
+    // 1st position -> water -> 3rd position -> water -> home
     ToPosition(positions[0][0], positions[0][1]);
+    toUD(down); water(); toUD(up);
     ToPosition(positions[2][0], positions[2][1]);
-  };
-  if (index == 12) {
-    ToPosition(positions[1][0], positions[1][1]);
-    ToPosition(positions[3][0], positions[3][1]);
-  };
-  if (index == 13) {
-    ToPosition(positions[2][0], positions[2][1]);
-    ToPosition(positions[4][0], positions[4][1]);
-  };
-  if (index == 14) {
-    ToPosition(positions[0][0], positions[0][1]);
-    ToPosition(positions[2][0], positions[2][1]);
+    toUD(down); water(); toUD(up);
+    ToPosition(positions[6][0], positions[6][1]);
   }
-  if (index == 11 || index == 13) {
-    ToPosition(positions[0][0], positions[0][1]);
-    ToPosition(positions[2][0], positions[2][1]);
-    ToPosition(positions[4][0], positions[4][1]);
-  };
-  if (index == 12 || index == 14) {
+  else if (index == 12) {
+    // 2nd position -> water -> 4th position -> water -> home
     ToPosition(positions[1][0], positions[1][1]);
+    toUD(down); water(); toUD(up);
     ToPosition(positions[3][0], positions[3][1]);
+    toUD(down); water(); toUD(up);
+    ToPosition(positions[6][0], positions[6][1]);
+  }
+  else if (index == 13) {
+    // 4th position -> water -> 6th position -> water -> home
+    ToPosition(positions[3][0], positions[3][1]);
+    toUD(down); water(); toUD(up);
     ToPosition(positions[5][0], positions[5][1]);
+    toUD(down); water(); toUD(up);
+    ToPosition(positions[6][0], positions[6][1]);
+  }
+  else if (index == 14) {
+    // 3rd position -> water -> 5th position -> water -> home
+    ToPosition(positions[2][0], positions[2][1]);
+    toUD(down); water(); toUD(up);
+    ToPosition(positions[4][0], positions[4][1]);
+    toUD(down); water(); toUD(up);
+    ToPosition(positions[6][0], positions[6][1]);
+  }
+  else if (index == 15) {
+    // 1st position -> water -> 3rd position -> water -> 5th position -> water -> home
+    ToPosition(positions[0][0], positions[0][1]);
+    toUD(down); water(); toUD(up);
+    ToPosition(positions[2][0], positions[2][1]);
+    toUD(down); water(); toUD(up);
+    ToPosition(positions[4][0], positions[4][1]);
+    toUD(down); water(); toUD(up);
+    ToPosition(positions[6][0], positions[6][1]);
+  }
+  else if (index == 16) {
+    // 2nd position -> water -> 4th position -> water -> 6th position -> water -> home
+    ToPosition(positions[1][0], positions[1][1]);
+    toUD(down); water(); toUD(up);
+    ToPosition(positions[3][0], positions[3][1]);
+    toUD(down); water(); toUD(up);
+    ToPosition(positions[5][0], positions[5][1]);
+    toUD(down); water(); toUD(up);
+    ToPosition(positions[6][0], positions[6][1]);
   }
 }
-
 /*----------------------------------------------------------------------------------*/
 
 void water() {
@@ -263,7 +318,7 @@ void water() {
   analogWrite(waterPin, 110);
   
   unsigned long startTime = millis();
-  unsigned long totalWaterTime = 10000; // 7 seconds total watering time
+  unsigned long totalWaterTime = 3000; // 7 seconds total watering time
 
   while (true) {
     unsigned long elapsed = millis() - startTime;
@@ -291,7 +346,7 @@ void water() {
 
 void seedDrop() {
   limitPause();
-  servo.write(120);
+  servo.write(90);
   
   unsigned long startTime = millis();
   unsigned long dropTime = 500; // 100ms hold time
@@ -306,10 +361,10 @@ void seedDrop() {
     unsigned long pauseDuration = limitPause();
     if (pauseDuration > 0) {
       startTime += pauseDuration; // Freeze timer during pause
-      servo.write(120);           // Re-apply servo position after resume
+      servo.write(90);           // Re-apply servo position after resume
     }
   }
   
-  servo.write(0);
+  servo.write(30);
 
 }

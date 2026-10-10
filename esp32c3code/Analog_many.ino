@@ -3,8 +3,8 @@
 
 #define FIREBASE_HOST "https://esp8266webserver-31a5e-default-rtdb.firebaseio.com"
 #define FIREBASE_AUTH "UNn3KnbUGTwJesmgrDjXPXyXFwzCzpwoCi7dXPqP"
-#define WIFI_SSID "SLT-4G-FD1E00"
-#define WIFI_PASS "7DWE4F6SQ6"
+#define WIFI_SSID "Redmi Note 11"
+#define WIFI_PASS "11110000"
 
 FirebaseData fbdo;
 FirebaseAuth auth;
@@ -17,7 +17,7 @@ void setup() {
   digitalWrite(10, LOW);
 
   Serial.begin(9600);
-  Serial1.begin(9600, SERIAL_8N1, 20, 21);
+  Serial1.begin(4800, SERIAL_8N1, 20, 21);
   analogSetAttenuation(ADC_11db);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 
@@ -50,9 +50,9 @@ void setup() {
 }
 
 
-
-void loop() {
   bool seeded = false; 
+void loop() {
+
   
   int valuearr[5] = {0,0,0,0,0};
   int pinarr[5] = {0, 1, 2, 3, 4};
@@ -67,14 +67,25 @@ void loop() {
   value = analogRead(pinarr[4]);
   value = constrain(value, 0, 4095);
   valuearr[4] = map(value, 0, 4095, 0, 100);
-
-  for(int i = 0; i<4; i++){
-    if( valuearr[i] < 30){
-      if(seeded == true ){
+ 
+  if(seeded == true ){
+   if (valuearr[0] < 30 && valuearr[1] < 30) {
+      Serial1.println(15);
+      Serial.println("Sent 15 (Sensors 1 & 2 low)");
+    }
+    if (valuearr[2] < 30 && valuearr[3] < 30) {
+      Serial1.println(16);
+      Serial.println("Sent 16 (Sensors 3 & 4 low)");
+    }
+   else{
+    for(int i = 0; i<4; i++){
+      if( valuearr[i] < 30){
         Serial1.println(sensorpin[i]);
       // Serial.print(" | ");
       }
     }
+   }
+   
   }
   
 
